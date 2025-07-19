@@ -2,9 +2,7 @@
 session_start();
 // Generate CSRF token
 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-include 'pages/db_connect.php';
-
-// 9ebff7d5b21cc09a151fcc958cdec66f
+include 'includes/db_connect.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -18,30 +16,36 @@ include 'pages/db_connect.php';
 <body>
     <!-- for the header -->
     <section class="self-center h-[10vh] bg-slate-400">
-
     </section>
 
     <!-- for the login form -->
     <section class="mt-20 w-full max-w-md m-auto">
         <form action="pages/login.php" method="POST" class="p-6 bg-white border border-gray-300 rounded-xl shadow-md">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
             <h1 class="text-[28px] text-center font-semibold">MMH EHR</h1>
             <!-- div for displaying error messages -->
             <div class="w-full h-10">
-                <p id="error"></p>
+                <?php if (isset($_GET['error'])): ?>
+                    <p id="error" class="text-red-500 text-center"><?php echo htmlspecialchars($_GET['error']); ?></p>
+                <?php else: ?>
+                    <p id="error"></p>
+                <?php endif; ?>
             </div>
 
             <div class="relative mb-4">
                 <div class="absolute insert-y-0 left-0 pointer-none flex self-center pl-2">
                     <i class="fa-solid fa-user text-gray-600 text-[20px]"></i>
                 </div>
-                <input type="text" id="employeeID" name="employeeID"  placeholder="Employee ID" class="bg-transparent w-full pl-10 h-10 border-b-2 border-gray-400 outline-none focus:border-b-blue-700 transition-colors duration-200 placeholder:text-[black] required">
+                <input type="text" id="employee_id" name="employee_id" placeholder="Employee ID" 
+                       class="bg-transparent w-full pl-10 h-10 border-b-2 border-gray-400 outline-none focus:border-b-blue-700 transition-colors duration-200 placeholder:text-[black]" required>
             </div>
 
             <div class="relative">
                 <div class="absolute insert-y-0 left-0 pointer-none flex self-center pl-2">
                     <i class="fa-solid fa-lock text-gray-600 text-[20px]"></i>
                 </div>
-                <input type="password" id="password" name="password" placeholder="Password" class="bg-transparent w-full pl-10 h-10 border-b-2 border-gray-400  outline-none focus:border-b-blue-700 transition-colors duration-200 placeholder:text-[black] required">
+                <input type="password" id="password" name="password" placeholder="Password" 
+                       class="bg-transparent w-full pl-10 h-10 border-b-2 border-gray-400 outline-none focus:border-b-blue-700 transition-colors duration-200 placeholder:text-[black]" required>
             </div>
 
             <div class="w-fit float-right mt-2">
