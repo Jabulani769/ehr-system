@@ -7,7 +7,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'nurse') {
     header("Location: ../index.php?error=" . urlencode("Unauthorized access"));
     exit();
 }
-$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 include '../includes/db_connect.php';
 
 // Initialize sort parameters (default: newest admission)
@@ -106,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 </head>
 <body>
 <?php include '../includes/header.php'; ?>
-    <section class="mt-10 w-full max-w-4xl m-auto p-6">
+    <section class="mt-10 w-full max-w-7xl m-auto p-6">
         <h1 class="text-[28px] font-semibold text-center">Patient Management</h1>
 
         <?php if ($success): ?>
@@ -118,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         <?php if ($action === 'admit'): ?>
             <!-- Admit form with bed number and critical status -->
-            <form action="patient_management.php?action=admit" method="POST" class="p-6 bg-white border border-gray-300 rounded-xl shadow-md">
+            <form action="patient_management.php?action=admit" method="POST" class="w-[60%] m-auto p-6 bg-white border border-gray-300 rounded-xl shadow-md">
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                 <h2 class="text-[24px] font-semibold mb-4">Admit New Patient</h2>
                 <div class="mb-4">
@@ -158,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($patient):
             ?>
             <!-- Edit form -->
-            <form action="patient_management.php?action=edit" method="POST" class="p-6 bg-white border border-gray-300 rounded-xl shadow-md">
+            <form action="patient_management.php?action=edit" method="POST" class="w-[60%] m-auto p-6 bg-white border border-gray-300 rounded-xl shadow-md">
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                 <input type="hidden" name="patient_id" value="<?php echo $patient_id; ?>">
                 <h2 class="text-[24px] font-semibold mb-4">Edit Patient</h2>
@@ -245,7 +248,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
             <?php
             // Filter active patients
-            $query = "SELECT * FROM patients WHERE discharged_at IS NULL ORDER BY $sort_by $sort_order";
+            $query = "
+                SELECT p.*, 
+                    EXISTS (
+                        SELECT 1 FROM vitals v 
+                        WHERE v.patient_id = p.patient_id 
+                        AND v.is_critical = TRUE 
+                        AND p.discharged_at IS NULL
+                    ) AS is_critical_dynamic
+                FROM patients p
+                WHERE p.discharged_at IS NULL
+                ORDER BY $sort_by $sort_order
+            ";
             $stmt = $conn->prepare($query);
             $stmt->execute();
             $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -265,13 +279,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <tbody>
                     <?php foreach ($patients as $patient): ?>
                         <tr>
-                            <td class="border border-gray-300 p-2"><?php echo htmlspecialchars($patient['first_name'] . ' ' . $patient['last_name']); ?></td>
-                            <td class="border border-gray-300 p-2"><?php echo htmlspecialchars($patient['dob']); ?></td>
-                            <td class="border border-gray-300 p-2"><?php echo htmlspecialchars($patient['gender']); ?></td>
-                            <td class="border border-gray-300 p-2"><?php echo htmlspecialchars($patient['phone']); ?></td>
-                            <td class="border border-gray-300 p-2"><?php echo htmlspecialchars($patient['bed_number']); ?></td>
-                            <td class="border border-gray-300 p-2"><?php echo $patient['is_critical'] ? 'Yes' : 'No'; ?></td>
-                            <td class="border border-gray-300 p-2">
+                            <td class="border border-gray-300 text-center p-2"><?php echo htmlspecialchars($patient['first_name'] . ' ' . $patient['last_name']); ?></td>
+                            <td class="border border-gray-300 text-center p-2"><?php echo htmlspecialchars($patient['dob']); ?></td>
+                            <td class="border border-gray-300 text-center p-2"><?php echo htmlspecialchars($patient['gender']); ?></td>
+                            <td class="border border-gray-300 text-center p-2"><?php echo htmlspecialchars($patient['phone']); ?></td>
+                            <td class="border border-gray-300 text-center p-2"><?php echo htmlspecialchars($patient['bed_number']); ?></td>
+                            <td class="border border-gray-300 text-center p-2">
+                                <?php echo $patient['is_critical_dynamic'] ? '<span class="text-red-600 font-semibold">Yes</span>' : 'No'; ?>
+                            </td>
+                            <td class="border border-gray-300 text-center p-2">
                                 <a href="patient_management.php?action=edit&patient_id=<?php echo $patient['patient_id']; ?>" class="text-blue-600 hover:underline">Edit</a> |
                                 <a href="patient_management.php?action=discharge&patient_id=<?php echo $patient['patient_id']; ?>" class="text-red-600 hover:underline">Discharge</a> |
                                 <a href="patient_management.php?action=assign_bed&patient_id=<?php echo $patient['patient_id']; ?>" class="text-blue-600 hover:underline">Reassign Bed</a> |

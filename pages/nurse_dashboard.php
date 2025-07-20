@@ -21,25 +21,30 @@ $stmt = $conn->prepare("
     SELECT p.patient_id, p.first_name, p.last_name, v.blood_pressure, v.heart_rate, v.temperature
     FROM patients p
     JOIN vitals v ON p.patient_id = v.patient_id
-    WHERE v.is_critical = TRUE
+    WHERE v.is_critical = TRUE AND p.discharged_at IS NULL
     LIMIT 1
 ");
 $stmt->execute();
 $critical_patient = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Count critical vitals
-$stmt = $conn->prepare("SELECT COUNT(*) as critical_count FROM vitals WHERE is_critical = TRUE");
+// Count critical vitals (only for active patients)
+$stmt = $conn->prepare("
+    SELECT COUNT(*) as critical_count 
+    FROM vitals v
+    JOIN patients p ON v.patient_id = p.patient_id
+    WHERE v.is_critical = TRUE AND p.discharged_at IS NULL
+");
 $stmt->execute();
 $critical_count = $stmt->fetch(PDO::FETCH_ASSOC)['critical_count'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MMH | Nurse Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 </head>
 <body class="bg-gray-100">
     <?php include '../includes/header.php'; ?>
@@ -81,27 +86,27 @@ $critical_count = $stmt->fetch(PDO::FETCH_ASSOC)['critical_count'];
             </div>
         </div>
 
-        <!-- Medications (Placeholder) -->
+        <!-- Medications -->
         <div class="w-[30%] p-6 shadow-xl rounded-md bg-white">
             <h1 class="text-[20px] text-blue-700"><i class="fa-solid fa-pills"></i> Medications</h1>
             <div class="mt-4">
-                <a href="medications.php?action=administer" class="block w-full h-10 mt-2 bg-blue-500 hover:bg-blue-700 text-white text-center leading-10 rounded-md">
-                    <i class="fa-solid fa-syringe pr-2"></i> Administer Now
+                <a href="medications.php?view=form" class="block w-full h-10 mt-2 bg-blue-500 hover:bg-blue-700 text-white text-center leading-10 rounded-md">
+                    <i class="fa-solid fa-plus pr-2"></i> Add Medication
                 </a>
-                <a href="medications.php?action=schedule" class="block w-full h-10 mt-2 text-blue-500 border-2 border-blue-400 text-center leading-10 rounded-md">
-                    Medication Schedule
+                <a href="medications.php?view=table" class="block w-full h-10 mt-2 text-blue-500 border-2 border-blue-400 text-center leading-10 rounded-md">
+                    View Medications
                 </a>
             </div>
         </div>
 
-        <!-- Ward Management (Placeholder) -->
+        <!-- Ward Management -->
         <div class="w-[30%] p-6 shadow-xl rounded-md bg-white">
             <h1 class="text-[20px] text-purple-600"><i class="fa-solid fa-bed-pulse"></i> Ward Management</h1>
             <div class="mt-4 flex gap-2">
                 <a href="patient_management.php?action=list" class="w-full h-10 mt-2 bg-purple-500 hover:bg-purple-700 text-white text-center leading-10 rounded-md">
                     Patient List
                 </a>
-                <a href="patient_management.php?action=reassign" class="w-full h-10 mt-2 bg-purple-200 hover:bg-purple-300 text-purple-500 text-center leading-10 rounded-md">
+                <a href="patient_management.php?action=assign_bed" class="w-full h-10 mt-2 bg-purple-200 hover:bg-purple-300 text-purple-500 text-center leading-10 rounded-md">
                     Assign Bed
                 </a>
             </div>
@@ -116,7 +121,7 @@ $critical_count = $stmt->fetch(PDO::FETCH_ASSOC)['critical_count'];
         </div>
     </section>
 
-    <!-- Quick Actions (Placeholder) -->
+    <!-- Quick Actions -->
     <section class="flex flex-wrap justify-center gap-10 self-center mt-14">
         <a href="messages.php" class="bg-green-200 px-2 w-[20%] text-green-900 rounded-md text-center py-2">
             <i class="fa-solid fa-message"></i>

@@ -34,6 +34,14 @@ if (isset($_SESSION['role'])) {
 
 // Check if there's a referrer for the Back button
 $back_url = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
+
+// Fetch unread messages count for current user's department
+$unread_count = 0;
+if (isset($_SESSION['department'])) {
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM messages WHERE receiver_department = ? AND is_read = FALSE");
+    $stmt->execute([$_SESSION['department']]);
+    $unread_count = (int) $stmt->fetchColumn();
+}
 ?>
 
 <header class="bg-blue-600 text-white p-4 shadow-md">
@@ -58,6 +66,16 @@ $back_url = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
                 $username = isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : 'Unknown';
                 ?>
                 <span class="text-sm"><?php echo "Welcome, $username ($department_name)"; ?></span>
+
+                <!-- Messages link with badge -->
+                <a href="messages.php" class="relative inline-flex items-center px-3 py-2 text-white hover:text-blue-200">
+                    <i class="fa fa-envelope mr-1"></i> Messages
+                    <?php if ($unread_count > 0): ?>
+                        <span class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full transform translate-x-1/2 -translate-y-1/2">
+                            <?= $unread_count ?>
+                        </span>
+                    <?php endif; ?>
+                </a>
                 
                 <!-- Navigation Buttons -->
                 <?php if ($back_url && $current_page !== $dashboard_page && $current_page !== 'index.php'): ?>
@@ -74,7 +92,7 @@ $back_url = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
                 <?php endif; ?>
                 
                 <!-- Logout -->
-                <a href="logout.php" class="text-white hover:underline">Logout</a>
+                <a href="../includes/logout.php" class="text-white hover:underline">Logout</a>
             <?php else: ?>
                 <!-- Login Link -->
                 <a href="../index.php" class="text-white hover:underline">Login</a>
