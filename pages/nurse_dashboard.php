@@ -1,5 +1,4 @@
 <?php
-// Secure session settings
 ini_set('session.cookie_httponly', 1);
 session_start();
 include '../includes/db_connect.php';
@@ -27,7 +26,7 @@ $stmt = $conn->prepare("
 $stmt->execute();
 $critical_patient = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Count critical vitals (only for active patients)
+// Count critical vitals
 $stmt = $conn->prepare("
     SELECT COUNT(*) as critical_count 
     FROM vitals v
@@ -36,7 +35,50 @@ $stmt = $conn->prepare("
 ");
 $stmt->execute();
 $critical_count = $stmt->fetch(PDO::FETCH_ASSOC)['critical_count'];
+
+// Fetch users for recipient dropdown (exclude self)
+$user_id = $_SESSION['user_id'];
+$department_id = $_SESSION['department_id'] ?? 1;
+$stmt = $conn->prepare("SELECT user_id, username, role FROM users WHERE user_id != ? AND status = 'active'");
+$stmt->execute([$user_id]);
+$users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// // Handle message submission
+// $error = '';
+// $success = '';
+// if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
+//     $recipient_id = filter_input(INPUT_POST, 'recipient_id', FILTER_VALIDATE_INT);
+//     $subject = filter_input(INPUT_POST, 'subject', FILTER_SANITIZE_STRING);
+//     $content = filter_input(INPUT_POST, 'content', FILTER_SANITIZE_STRING);
+    
+//     if ($recipient_id && $subject && $content) {
+//         try {
+//             $stmt = $conn->prepare("INSERT INTO messages (sender_id, recipient_id, subject, content, sent_at) 
+//                                     VALUES (?, ?, ?, ?, NOW())");
+//             $stmt->execute([$user_id, $recipient_id, $subject, $content]);
+//             $success = "Message sent successfully.";
+//         } catch (PDOException $e) {
+//             $error = "Failed to send message: " . $e->getMessage();
+//         }
+//     } else {
+//         $error = "All fields are required.";
+//     }
+// }
+
+// // Fetch sent messages
+// try {
+//     $stmt = $conn->prepare("SELECT m.message_id, m.recipient_id, u.username, m.subject, m.sent_at, m.is_read 
+//                             FROM messages m 
+//                             JOIN users u ON m.recipient_id = u.user_id 
+//                             WHERE m.sender_id = ? ORDER BY m.sent_at DESC");
+//     $stmt->execute([$user_id]);
+//     $sent_messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// } catch (PDOException $e) {
+//     $error = "Error fetching sent messages: " . $e->getMessage();
+//     $sent_messages = [];
+// }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -45,10 +87,38 @@ $critical_count = $stmt->fetch(PDO::FETCH_ASSOC)['critical_count'];
     <title>MMH | Nurse Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            background-color: #ffffff;
+            border: 2px solid #e5e7eb; /* border-gray-200 */
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .table-header {
+            background-color: #e5e7eb; /* bg-gray-200 */
+        }
+        .btn-primary {
+            background-color: #3b82f6; /* bg-blue-500 */
+            border: 2px solid #3b82f6;
+            transition: background-color 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb; /* hover:bg-blue-600 */
+        }
+        @media (max-width: 640px) {
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <?php include '../includes/header.php'; ?>
-
     <!-- Critical Patient Section -->
     <section class="h-[10vh] pl-20 mt-6">
         <div class="border-l-2 border-red-700">
@@ -69,7 +139,7 @@ $critical_count = $stmt->fetch(PDO::FETCH_ASSOC)['critical_count'];
 
     <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-14 px-20">
         <!-- Patient Vitals -->
-        <div class="w-[30%] p-6 shadow-xl rounded-md bg-white">
+        <div class="w-full p-6 shadow-xl rounded-md bg-white">
             <div class="flex justify-between gap-10 items-center">
                 <h1 class="text-[20px] text-blue-500"><i class="fa-solid fa-heart-pulse"></i> Patient Vitals</h1>
                 <div class="bg-blue-200 text-red-600 font-semibold px-2 rounded-xl">
@@ -87,7 +157,7 @@ $critical_count = $stmt->fetch(PDO::FETCH_ASSOC)['critical_count'];
         </div>
 
         <!-- Medications -->
-        <div class="w-[30%] p-6 shadow-xl rounded-md bg-white">
+        <div class="w-full p-6 shadow-xl rounded-md bg-white">
             <h1 class="text-[20px] text-blue-700"><i class="fa-solid fa-pills"></i> Medications</h1>
             <div class="mt-4">
                 <a href="medications.php?view=form" class="block w-full h-10 mt-2 bg-blue-500 hover:bg-blue-700 text-white text-center leading-10 rounded-md">
@@ -100,7 +170,7 @@ $critical_count = $stmt->fetch(PDO::FETCH_ASSOC)['critical_count'];
         </div>
 
         <!-- Ward Management -->
-        <div class="w-[30%] p-6 shadow-xl rounded-md bg-white">
+        <div class="w-full p-6 shadow-xl rounded-md bg-white">
             <h1 class="text-[20px] text-purple-600"><i class="fa-solid fa-bed-pulse"></i> Ward Management</h1>
             <div class="mt-4 flex gap-2">
                 <a href="patient_management.php?action=list" class="w-full h-10 mt-2 bg-purple-500 hover:bg-purple-700 text-white text-center leading-10 rounded-md">
@@ -121,12 +191,23 @@ $critical_count = $stmt->fetch(PDO::FETCH_ASSOC)['critical_count'];
         </div>
     </section>
 
+    <!-- Death Management -->
+    <section class="container mx-auto p-6">
+        <div class="card p-6">
+            <h2 class="text-xl font-semibold mb-4">Death Management</h2>
+            <div class="flex gap-4">
+                <a href="deaths.php?action=record" class="w-full h-10 bg-red-500 hover:bg-red-600 text-white text-center leading-10 rounded-md">
+                    Record Death
+                </a>
+                <a href="deaths.php?action=report" class="w-full h-10 border-2 border-red-500 text-red-500 text-center leading-10 rounded-md">
+                    View Death Reports
+                </a>
+            </div>
+        </div>
+    </section>
+
     <!-- Quick Actions -->
-    <section class="flex flex-wrap justify-center gap-10 self-center mt-14">
-        <a href="messages.php" class="bg-green-200 px-2 w-[20%] text-green-900 rounded-md text-center py-2">
-            <i class="fa-solid fa-message"></i>
-            <p>Ward Messages</p>
-        </a>
+    <section class="flex flex-wrap justify-center gap-10 self-center">
         <a href="reports.php" class="bg-blue-200 px-2 w-[20%] text-blue-500 rounded-md text-center py-2">
             <i class="fa-solid fa-file"></i>
             <p>Shift Report</p>
@@ -135,7 +216,7 @@ $critical_count = $stmt->fetch(PDO::FETCH_ASSOC)['critical_count'];
             <i class="fa-solid fa-truck-medical"></i>
             <p>Emergency</p>
         </a>
-        <a href="lab_results.php" class="bg-gray-200 px-2 w-[20%] text-gray-500 rounded-md text-center py-2">
+        <a href="test_results.php" class="bg-gray-200 px-2 w-[20%] text-gray-500 rounded-md text-center py-2">
             <i class="fa-solid fa-flask-vial"></i>
             <p>Lab/Radio Results</p>
         </a>

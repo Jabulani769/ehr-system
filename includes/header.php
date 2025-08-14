@@ -1,11 +1,11 @@
 <?php
-// Avoid redundant session_start() as it's called in the main page
+// Include DB connection
 include '../includes/db_connect.php';
 
-// Determine the current page
+// Determine current page
 $current_page = basename($_SERVER['PHP_SELF']);
 
-// Determine the dashboard page based on role
+// Set dashboard redirect based on role
 $dashboard_page = '';
 if (isset($_SESSION['role'])) {
     switch ($_SESSION['role']) {
@@ -22,79 +22,71 @@ if (isset($_SESSION['role'])) {
             $dashboard_page = 'pharmacist_dashboard.php';
             break;
         case 'lab':
-            $dashboard_page = 'lab_dashboard.php';
-            break;
         case 'radiology':
-            $dashboard_page = 'radiology_dashboard.php';
+            $dashboard_page = 'lab_radio_dashboard.php';
             break;
         default:
             $dashboard_page = '../index.php';
     }
 }
 
-// Check if there's a referrer for the Back button
-$back_url = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
-
-// Fetch unread messages count for current user's department
-$unread_count = 0;
-if (isset($_SESSION['department'])) {
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM messages WHERE receiver_department = ? AND is_read = FALSE");
-    $stmt->execute([$_SESSION['department']]);
-    $unread_count = (int) $stmt->fetchColumn();
-}
+// Back button support
+$back_url = $_SERVER['HTTP_REFERER'] ?? '';
 ?>
 
 <header class="bg-blue-600 text-white p-4 shadow-md">
     <div class="container mx-auto flex justify-between items-center">
         <!-- Hospital Name -->
         <h1 class="text-xl font-bold">Mulanje Mission Hospital EHR</h1>
-        
+
         <!-- Navigation -->
         <nav class="flex items-center space-x-4">
             <?php if (isset($_SESSION['user_id'])): ?>
-                <!-- User Info -->
                 <?php
+                // Set default values
+                $username = 'Unknown';
                 $department_name = 'No Department';
-                if (isset($_SESSION['department_id']) && !empty($_SESSION['department_id'])) {
+
+                // Sanitize and set username if available
+                if (!empty($_SESSION['username'])) {
+                    $username = htmlspecialchars($_SESSION['username']);
+                }
+
+                // Fetch department name from DB if department_id is valid
+                if (!empty($_SESSION['department_id']) && is_numeric($_SESSION['department_id'])) {
                     $stmt = $conn->prepare("SELECT name FROM departments WHERE department_id = ?");
                     $stmt->execute([$_SESSION['department_id']]);
                     $dept = $stmt->fetch(PDO::FETCH_ASSOC);
-                    if ($dept) {
+                    if ($dept && !empty($dept['name'])) {
                         $department_name = htmlspecialchars($dept['name']);
                     }
                 }
-                $username = isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : 'Unknown';
                 ?>
-                <span class="text-sm"><?php echo "Welcome, $username ($department_name)"; ?></span>
+                <span class="text-sm"><?php echo "$username ($department_name)"; ?></span>
 
-                <!-- Messages link with badge -->
-                <a href="messages.php" class="relative inline-flex items-center px-3 py-2 text-white hover:text-blue-200">
-                    <i class="fa fa-envelope mr-1"></i> Messages
-                    <?php if ($unread_count > 0): ?>
-                        <span class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full transform translate-x-1/2 -translate-y-1/2">
-                            <?= $unread_count ?>
-                        </span>
-                    <?php endif; ?>
-                </a>
-                
-                <!-- Navigation Buttons -->
+                <!-- Back Button -->
                 <?php if ($back_url && $current_page !== $dashboard_page && $current_page !== 'index.php'): ?>
-                    <a href="<?php echo htmlspecialchars($back_url); ?>" 
+                    <a href="<?php echo htmlspecialchars($back_url); ?>"
                        class="bg-blue-500 hover:bg-blue-700 text-white px-3 py-2 rounded-md flex items-center">
                         <i class="fa-solid fa-arrow-left mr-2"></i> Back
                     </a>
                 <?php endif; ?>
+
+                <!-- Dashboard Button -->
                 <?php if ($current_page !== $dashboard_page && $dashboard_page): ?>
-                    <a href="<?php echo $dashboard_page; ?>" 
+                    <a href="<?php echo htmlspecialchars($dashboard_page); ?>"
                        class="bg-blue-500 hover:bg-blue-700 text-white px-3 py-2 rounded-md flex items-center">
                         <i class="fa-solid fa-home mr-2"></i> Dashboard
                     </a>
                 <?php endif; ?>
-                
+
                 <!-- Logout -->
-                <a href="../includes/logout.php" class="text-white hover:underline">Logout</a>
+                <a href="../index.php?action=logout"
+                   class="text-white p-1 border-2 border-white rounded-md">
+                    Logout
+                </a>
             <?php else: ?>
-                <!-- Login Link -->
+                <!-- If not logged in -->
                 <a href="../index.php" class="text-white hover:underline">Login</a>
             <?php endif; ?>
         </nav>
