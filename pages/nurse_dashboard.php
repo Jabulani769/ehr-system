@@ -42,184 +42,154 @@ $department_id = $_SESSION['department_id'] ?? 1;
 $stmt = $conn->prepare("SELECT user_id, username, role FROM users WHERE user_id != ? AND status = 'active'");
 $stmt->execute([$user_id]);
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// // Handle message submission
-// $error = '';
-// $success = '';
-// if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
-//     $recipient_id = filter_input(INPUT_POST, 'recipient_id', FILTER_VALIDATE_INT);
-//     $subject = filter_input(INPUT_POST, 'subject', FILTER_SANITIZE_STRING);
-//     $content = filter_input(INPUT_POST, 'content', FILTER_SANITIZE_STRING);
-    
-//     if ($recipient_id && $subject && $content) {
-//         try {
-//             $stmt = $conn->prepare("INSERT INTO messages (sender_id, recipient_id, subject, content, sent_at) 
-//                                     VALUES (?, ?, ?, ?, NOW())");
-//             $stmt->execute([$user_id, $recipient_id, $subject, $content]);
-//             $success = "Message sent successfully.";
-//         } catch (PDOException $e) {
-//             $error = "Failed to send message: " . $e->getMessage();
-//         }
-//     } else {
-//         $error = "All fields are required.";
-//     }
-// }
-
-// // Fetch sent messages
-// try {
-//     $stmt = $conn->prepare("SELECT m.message_id, m.recipient_id, u.username, m.subject, m.sent_at, m.is_read 
-//                             FROM messages m 
-//                             JOIN users u ON m.recipient_id = u.user_id 
-//                             WHERE m.sender_id = ? ORDER BY m.sent_at DESC");
-//     $stmt->execute([$user_id]);
-//     $sent_messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
-// } catch (PDOException $e) {
-//     $error = "Error fetching sent messages: " . $e->getMessage();
-//     $sent_messages = [];
-// }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MMH | Nurse Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .card {
-            background-color: #ffffff;
-            border: 2px solid #e5e7eb; /* border-gray-200 */
-            border-radius: 0.75rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        .table-header {
-            background-color: #e5e7eb; /* bg-gray-200 */
-        }
-        .btn-primary {
-            background-color: #3b82f6; /* bg-blue-500 */
-            border: 2px solid #3b82f6;
-            transition: background-color 0.3s;
-        }
-        .btn-primary:hover {
-            background-color: #2563eb; /* hover:bg-blue-600 */
-        }
-        @media (max-width: 640px) {
-            table {
-                display: block;
-                overflow-x: auto;
-                white-space: nowrap;
-            }
-        }
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-50">
     <?php include '../includes/header.php'; ?>
-    <!-- Critical Patient Section -->
-    <section class="h-[10vh] pl-20 mt-6">
-        <div class="border-l-2 border-red-700">
-            <h1 class="pl-2 font-semibold text-red-700">
-                <i class="fa-solid fa-triangle-exclamation"></i> Critical Patient (<?php echo $critical_count; ?>)
-            </h1>
-            <?php if ($critical_patient): ?>
-                <p class="pl-2 font-semibold"><?php echo htmlspecialchars($critical_patient['first_name'] . ' ' . $critical_patient['last_name']); ?></p>
-                <p class="pl-2">BP: <?php echo htmlspecialchars($critical_patient['blood_pressure']); ?>, HR: <?php echo $critical_patient['heart_rate']; ?>, Temp: <?php echo $critical_patient['temperature']; ?>°C</p>
-                <?php if ($critical_count > 1): ?>
-                    <a href="vitals.php?action=list" class="pl-2 text-blue-600 hover:underline">View All</a>
-                <?php endif; ?>
-            <?php else: ?>
-                <p class="pl-2">No critical patients</p>
-            <?php endif; ?>
-        </div>
-    </section>
+    
+    <!-- Mobile Navigation Toggle -->
+    <div class="md:hidden p-4">
+        <button id="mobile-menu-toggle" class="text-gray-600">
+            <i class="fas fa-bars text-xl"></i>
+        </button>
+    </div>
 
-    <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-14 px-20">
-        <!-- Patient Vitals -->
-        <div class="w-full p-6 shadow-xl rounded-md bg-white">
-            <div class="flex justify-between gap-10 items-center">
-                <h1 class="text-[20px] text-blue-500"><i class="fa-solid fa-heart-pulse"></i> Patient Vitals</h1>
-                <div class="bg-blue-200 text-red-600 font-semibold px-2 rounded-xl">
-                    <p class="text-[14px]"><?php echo $critical_count; ?> Critical</p>
+    <!-- Main Container -->
+    <div class="container mx-auto px-4 py-6">
+        <!-- Critical Patient Alert -->
+        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle text-red-500 mr-3"></i>
+                <div>
+                    <h3 class="text-red-700 font-semibold">Critical Patients (<?php echo $critical_count; ?>)</h3>
+                    <?php if ($critical_patient): ?>
+                        <p class="text-red-600"><?php echo htmlspecialchars($critical_patient['first_name'] . ' ' . $critical_patient['last_name']); ?></p>
+                        <p class="text-sm">BP: <?php echo htmlspecialchars($critical_patient['blood_pressure']); ?>, HR: <?php echo $critical_patient['heart_rate']; ?></p>
+                    <?php else: ?>
+                        <p class="text-red-600">No critical patients</p>
+                    <?php endif; ?>
                 </div>
             </div>
-            <div class="mt-4">
-                <a href="vitals.php?action=new" class="block w-full h-10 mt-2 text-white text-center leading-10 bg-blue-500 hover:bg-blue-600 transition rounded-md">
-                    <i class="fa-solid fa-plus pr-2"></i> New Reading
-                </a>
-                <a href="vitals.php?action=history" class="block w-full h-10 mt-2 text-blue-400 border-2 border-blue-400 rounded-md leading-10 text-center">
-                    View History
-                </a>
+        </div>
+
+        <!-- Dashboard Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Patient Vitals -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-blue-600">
+                        <i class="fas fa-heart-pulse mr-2"></i>Patient Vitals
+                    </h3>
+                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
+                        <?php echo $critical_count; ?> Critical
+                    </span>
+                </div>
+                <div class="space-y-3">
+                    <a href="vitals.php?action=new" class="block w-full bg-blue-500 hover:bg-blue-600 text-white text-center py-2 rounded-md transition">
+                        <i class="fas fa-plus mr-2"></i>New Reading
+                    </a>
+                    <a href="vitals.php?action=history" class="block w-full border border-blue-500 text-blue-500 hover:bg-blue-50 text-center py-2 rounded-md transition">
+                        View History
+                    </a>
+                </div>
+            </div>
+
+            <!-- Medications -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-blue-700 mb-4">
+                    <i class="fas fa-pills mr-2"></i>Medications
+                </h3>
+                <div class="space-y-3">
+                    <a href="medications.php?view=form" class="block w-full bg-blue-500 hover:bg-blue-600 text-white text-center py-2 rounded-md transition">
+                        <i class="fas fa-plus mr-2"></i>Add Medication
+                    </a>
+                    <a href="medications.php?view=table" class="block w-full border border-blue-500 text-blue-500 hover:bg-blue-50 text-center py-2 rounded-md transition">
+                        View Medications
+                    </a>
+                </div>
+            </div>
+
+            <!-- Ward Management -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-purple-600 mb-4">
+                    <i class="fas fa-bed-pulse mr-2"></i>Ward Management
+                </h3>
+                <div class="space-y-3">
+                    <a href="patient_management.php?action=list" class="block w-full bg-purple-500 hover:bg-purple-600 text-white text-center py-2 rounded-md transition">
+                        Patient List
+                    </a>
+                    <a href="patient_management.php?action=assign_bed" class="block w-full bg-purple-200 hover:bg-purple-300 text-purple-700 text-center py-2 rounded-md transition">
+                        Assign Bed
+                    </a>
+                </div>
             </div>
         </div>
 
-        <!-- Medications -->
-        <div class="w-full p-6 shadow-xl rounded-md bg-white">
-            <h1 class="text-[20px] text-blue-700"><i class="fa-solid fa-pills"></i> Medications</h1>
-            <div class="mt-4">
-                <a href="medications.php?view=form" class="block w-full h-10 mt-2 bg-blue-500 hover:bg-blue-700 text-white text-center leading-10 rounded-md">
-                    <i class="fa-solid fa-plus pr-2"></i> Add Medication
-                </a>
-                <a href="medications.php?view=table" class="block w-full h-10 mt-2 text-blue-500 border-2 border-blue-400 text-center leading-10 rounded-md">
-                    View Medications
-                </a>
-            </div>
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <a href="reports.php" class="bg-blue-100 hover:bg-blue-200 text-blue-700 p-4 rounded-lg text-center transition">
+                <i class="fas fa-file mr-2"></i>Shift Report
+            </a>
+            <a href="emergency.php" class="bg-red-100 hover:bg-red-200 text-red-700 p-4 rounded-lg text-center transition">
+                <i class="fas fa-truck-medical mr-2"></i>Emergency
+            </a>
+            <a href="test_results.php" class="bg-gray-100 hover:bg-gray-200 text-gray-700 p-4 rounded-lg text-center transition">
+                <i class="fas fa-flask-vial mr-2"></i>Lab Results
+            </a>
         </div>
 
-        <!-- Ward Management -->
-        <div class="w-full p-6 shadow-xl rounded-md bg-white">
-            <h1 class="text-[20px] text-purple-600"><i class="fa-solid fa-bed-pulse"></i> Ward Management</h1>
-            <div class="mt-4 flex gap-2">
-                <a href="patient_management.php?action=list" class="w-full h-10 mt-2 bg-purple-500 hover:bg-purple-700 text-white text-center leading-10 rounded-md">
-                    Patient List
-                </a>
-                <a href="patient_management.php?action=assign_bed" class="w-full h-10 mt-2 bg-purple-200 hover:bg-purple-300 text-purple-500 text-center leading-10 rounded-md">
-                    Assign Bed
-                </a>
+        <!-- Responsive Tables -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-800">Recent Vitals</h3>
             </div>
-            <div class="mt-2 flex gap-2">
-                <a href="patient_management.php?action=admit" class="w-full h-10 border-2 border-purple-500 text-purple-500 text-center leading-10 rounded-md">
-                    New Admission
-                </a>
-                <a href="patient_management.php?action=discharge" class="w-full h-10 border-2 border-purple-500 text-purple-500 text-center leading-10 rounded-md">
-                    Discharge
-                </a>
-            </div>
-        </div>
-    </section>
-
-    <!-- Death Management -->
-    <section class="container mx-auto p-6">
-        <div class="card p-6">
-            <h2 class="text-xl font-semibold mb-4">Death Management</h2>
-            <div class="flex gap-4">
-                <a href="deaths.php?action=record" class="w-full h-10 bg-red-500 hover:bg-red-600 text-white text-center leading-10 rounded-md">
-                    Record Death
-                </a>
-                <a href="deaths.php?action=report" class="w-full h-10 border-2 border-red-500 text-red-500 text-center leading-10 rounded-md">
-                    View Death Reports
-                </a>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BP</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">HR</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temp</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <!-- Dynamic content would go here -->
+                    </tbody>
+                </table>
             </div>
         </div>
-    </section>
+    </div>
 
-    <!-- Quick Actions -->
-    <section class="flex flex-wrap justify-center gap-10 self-center">
-        <a href="reports.php" class="bg-blue-200 px-2 w-[20%] text-blue-500 rounded-md text-center py-2">
-            <i class="fa-solid fa-file"></i>
-            <p>Shift Report</p>
-        </a>
-        <a href="emergency.php" class="bg-red-200 px-2 w-[20%] text-red-500 rounded-md text-center py-2">
-            <i class="fa-solid fa-truck-medical"></i>
-            <p>Emergency</p>
-        </a>
-        <a href="test_results.php" class="bg-gray-200 px-2 w-[20%] text-gray-500 rounded-md text-center py-2">
-            <i class="fa-solid fa-flask-vial"></i>
-            <p>Lab/Radio Results</p>
-        </a>
-    </section>
+    <!-- Mobile Navigation -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
+        <div class="flex justify-around py-2">
+            <a href="vitals.php" class="flex flex-col items-center text-blue-600">
+                <i class="fas fa-heart-pulse"></i>
+                <span class="text-xs">Vitals</span>
+            </a>
+            <a href="medications.php" class="flex flex-col items-center text-blue-600">
+                <i class="fas fa-pills"></i>
+                <span class="text-xs">Meds</span>
+            </a>
+            <a href="patient_management.php" class="flex flex-col items-center text-purple-600">
+                <i class="fas fa-bed"></i>
+                <span class="text-xs">Patients</span>
+            </a>
+        </div>
+    </nav>
 </body>
 </html>

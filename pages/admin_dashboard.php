@@ -154,6 +154,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
         $error = "Please fill all fields.";
     }
 }
+ 
+// Default values
+$username = 'Guest';
+$department_name = '';
+$initials = 'G'; // For Guest
+
+// Logged in?
+if (isset($_SESSION['user_id'])) {
+    // Use session-stored username or fallback
+    $username = htmlspecialchars($_SESSION['username'] ?? 'User');
+
+    // Generate initials (first letters of each word)
+    $parts = explode(' ', $username);
+    $initials = '';
+    foreach ($parts as $part) {
+        $initials .= strtoupper(substr($part, 0, 1));
+    }
+
+    // Fetch department name
+    if (!empty($_SESSION['department_id']) && is_numeric($_SESSION['department_id'])) {
+        $stmt = $conn->prepare("SELECT name FROM departments WHERE department_id = ?");
+        $stmt->execute([$_SESSION['department_id']]);
+        $dept = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($dept) {
+            $department_name = htmlspecialchars($dept['name']);
+        }
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -248,13 +276,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                 <div class="flex flex-col flex-grow overflow-y-auto">
                     <div class="px-4 py-4">
                         <div class="flex items-center pb-4 border-b border-gray-200">
-                            <div class="relative">
-                                <img src="https://placehold.co/40x40" alt="Admin profile picture" class="w-10 h-10 rounded-full">
-                                <span class="absolute bottom-0 right-0 w-2 h-2 bg-green-500 rounded-full"></span>
+                            <div class="w-8 h-8 rounded-full border-2 border-mmh-primary flex items-center justify-center text-white font-semibold">
+                                <?php echo $initials; ?>
                             </div>
-                            <div class="ml-3">
-                                <p class="text-sm font-medium">Admin User</p>
-                                <p class="text-xs text-gray-500">Administrator</p>
+                            <div class="ml-3 text-[12px] text-gray-900">
+                                <?php echo htmlspecialchars($username); ?> <br>
+                                <?php echo htmlspecialchars($department_name); ?>
                             </div>
                             
                         </div>
@@ -318,18 +345,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                     <h1 class="text-xl font-bold text-gray-800 hidden md:block">Admin Dashboard</h1>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <!-- Search bar can be added here if needed -->
-                    <!-- <div class="relative">
-                        <input type="text" placeholder="Search..." class="w-48 px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                        <i class="absolute right-3 top-2.5 fas fa-search text-gray-400"></i>
-                    </div> -->
-                    <button class="p-1 text-gray-500 rounded-full hover:bg-gray-100 focus:outline-none">
-                        <i class="fas fa-bell"></i>
-                    </button>
                     <div class="relative">
-                        <button class="flex items-center focus:outline-none">
-                            <img src="https://placehold.co/32x32" alt="Admin profile picture" class="w-8 h-8 rounded-full">
-                        </button>
+                         <div class="w-8 h-8 rounded-full border-2 border-mmh-primary flex items-center justify-center text-white font-semibold">
+                            <?php echo $initials; ?>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -778,12 +797,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 
     <script>
         'use strict';
-
-        /**
-         * Exports a table to PDF using jsPDF and autoTable, and logs the export
-         * @param {string} tableId - The ID of the table to export
-         * @param {string} title - The title of the PDF report
-         */
         function exportToPDF(tableId, title) {
             try {
                 // Validate inputs

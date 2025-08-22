@@ -4,13 +4,13 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Security: Secure session settings
+// Secure session settings
 ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
-ini_set('session.cookie_secure', 0); // Set to 1 for HTTPS
+ini_set('session.cookie_secure', 0); // Set to 1 if using HTTPS
 session_start();
 
-// Log session data for debugging
+// Debug session data (optional during development)
 error_log("Session data on index.php access: " . json_encode($_SESSION) . " at " . date('Y-m-d H:i:s'));
 
 // Include database connection
@@ -21,7 +21,7 @@ if (!file_exists($db_connect_path)) {
 }
 include $db_connect_path;
 
-// Initialize variables
+// Initialize status messages
 $error = '';
 $success = '';
 
@@ -31,19 +31,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 
     if ($employee_id && $password) {
         try {
-            $stmt = $conn->prepare("SELECT employee_id, employee_id, password, role, department_id FROM users WHERE employee_id = ? AND status = 'active'");
+            // ✅ FIXED: Include 'username' in the query
+            $stmt = $conn->prepare("SELECT employee_id, username, password, role, department_id FROM users WHERE employee_id = ? AND status = 'active'");
             $stmt->execute([$employee_id]);
             $user = $stmt->fetch();
 
             if ($user && password_verify($password, $user['password'])) {
-                // Set session variables
+                // ✅ FIXED: Now this works because 'username' is fetched
                 $_SESSION['user_id'] = $user['employee_id'];
-               // $_SESSION['username'] = $user['username'];
+                $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['department_id'] = $user['department_id'];
+
                 error_log("Login successful for user=$employee_id, role={$user['role']}, employee_id={$user['employee_id']} at " . date('Y-m-d H:i:s'));
 
-                // Redirect based on role
+                // Redirect by role
                 switch (strtolower($user['role'])) {
                     case 'lab':
                     case 'radiology':
@@ -66,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                         exit();
                 }
             } else {
-                $error = "Invalid employee_id or password.";
+                $error = "Invalid MMH ID or password.";
                 error_log("Login failed for user=$employee_id at " . date('Y-m-d H:i:s'));
             }
         } catch (PDOException $e) {
@@ -74,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             error_log("Database error in index.php: " . $e->getMessage());
         }
     } else {
-        $error = "Please enter both id and password.";
+        $error = "Please enter both ID and password.";
     }
 }
 
@@ -105,16 +107,19 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
     <div class="card p-6 w-full max-w-md">
         <h1 class="text-2xl font-bold text-gray-800 mb-4 text-center">MMH EHR - Login</h1>
+
         <?php if ($error): ?>
             <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded" role="alert">
                 <?php echo htmlspecialchars($error); ?>
             </div>
         <?php endif; ?>
+
         <?php if ($success): ?>
             <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded" role="alert">
                 <?php echo htmlspecialchars($success); ?>
             </div>
         <?php endif; ?>
+
         <form method="POST" class="space-y-4">
             <div>
                 <label for="employee_id" class="block text-gray-700">MMH ID</label>
@@ -129,7 +134,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
     </div>
 </body>
 </html>
+
 <?php
+// Close DB connection
 if (isset($conn)) {
     $conn = null;
 }

@@ -24,6 +24,36 @@ if (!isset($conn)) {
     die("Database connection not established. Please contact the administrator.");
 }
 
+// Validate and ensure user_id is an integer
+if (!is_int($_SESSION['user_id']) || $_SESSION['user_id'] <= 0) {
+    // Attempt to fetch user_id from users table using employee_id or username if available
+    $employee_id = $_SESSION['employee_id'] ?? null;
+    $username = $_SESSION['username'] ?? null;
+    if ($employee_id || $username) {
+        try {
+            $query = "SELECT user_id FROM users WHERE employee_id = ? OR username = ?";
+            $stmt = $conn->prepare($query);
+            $stmt->execute([$employee_id, $username]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($user && isset($user['user_id']) && is_numeric($user['user_id'])) {
+                $_SESSION['user_id'] = (int)$user['user_id'];
+            } else {
+                error_log("Invalid user session data at " . date('Y-m-d H:i:s') . ", employee_id=$employee_id, username=$username");
+                header("Location: ../index.php?error=" . urlencode("Invalid user session. Please log in again."));
+                exit();
+            }
+        } catch (PDOException $e) {
+            error_log("Database error fetching user_id: " . $e->getMessage());
+            header("Location: ../index.php?error=" . urlencode("Database error. Please contact the administrator."));
+            exit();
+        }
+    } else {
+        error_log("No valid user identifier in session at " . date('Y-m-d H:i:s'));
+        header("Location: ../index.php?error=" . urlencode("Invalid user session. Please log in again."));
+        exit();
+    }
+}
+
 $action = $_GET['action'] ?? 'list';
 $success = $_GET['success'] ?? '';
 $error = $_GET['error'] ?? '';
@@ -91,8 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 exit();
             }
 
-            $stmt = $conn->prepare("INSERT INTO test_results (patient_id, test_type, request_status, requested_by, requested_at) VALUES (?, ?, 'requested', ?, NOW())");
-            $stmt->execute([$patient_id, $test_type, $_SESSION['user_id']]);
+            $stmt = $conn->prepare("INSERT INTO test_results (patient_id, department_id, test_type, request_status, requested_by, requested_at) VALUES (?, (SELECT department_id FROM departments WHERE name = ?), ?, 'requested', ?, NOW())");
+            $stmt->execute([$patient_id, $department, $test_type, $_SESSION['user_id']]);
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
             header("Location: test_results.php?success=" . urlencode("Test requested successfully"));
             exit();

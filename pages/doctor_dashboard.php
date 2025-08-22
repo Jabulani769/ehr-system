@@ -176,6 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_test'])) {
             </form>
         </div>
     </section>
+    
     <script>
         function exportToPDF() {
             const { jsPDF } = window.jspdf;
@@ -201,6 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_test'])) {
     </script>
 </body>
 </html>
+
 <?php
 if (isset($conn)) {
     $conn = null;
